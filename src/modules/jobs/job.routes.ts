@@ -1,0 +1,20 @@
+import { Op } from "sequelize";
+import { Router } from "express";
+import { authenticate } from "../../middlewares/authenticate";
+import { authorize } from "../../middlewares/authorize";
+import { asyncHandler } from "../../utils/async-handler";
+import { AppError } from "../../utils/app-error";
+import { getPagination, paginationResponse } from "../../utils/pagination";
+import { UserRole } from "../auth/auth.model";
+import { Job, JobStatus } from "./job.model";
+import { Company } from "../companies/company.model";
+
+export const jobRouter = Router();
+jobRouter.get("/", asyncHandler(async (req, res) => { const { page, limit, offset } = getPagination(req.query.page, req.query.limit); const where: Record<string, unknown> = { status: JobStatus.PUBLISHED }; const query = String(req.query.keyword || ""); if (query) where[Op.or as unknown as string] = [{ title: { [Op.like]: `%${query}%` } }, { description: { [Op.like]: `%${query}%` } }]; for (const field of ["location", "employmentType", "experienceLevel"]) if (req.query[field]) where[field] = req.query[field]; if (req.query.minSalary) where.salaryMax = { [Op.gte]: Number(req.query.minSalary) }; if (req.query.maxSalary) where.salaryMin = { [Op.lte]: Number(req.query.maxSalary) }; const result = await Job.findAndCountAll({ where, limit, offset, order: [[String(req.query.sortBy || "createdAt"), String(req.query.sortOrder || "DESC").toUpperCase() === "ASC" ? "ASC" : "DESC"]], include: [{ model: Company, as: "company", attributes: ["id", "name", "location"] }] }); return res.json({ success: true, ...paginationResponse(result.rows, result.count, page, limit) }); }));
+jobRouter.get("/:id", asyncHandler(async (req, res, next) => { const job = await Job.findByPk(String(req.params.id), { include: [Company] }); if (!job) return next(new AppError("Job not found", 404)); return res.json({ success: true, job }); }));
+jobRouter.post("/", authenticate, authorize(UserRole.RECRUITER), asyncHandler(async (req, res) => res.status(201).json({ success: true, job: await Job.create({ ...req.body, recruiterId: req.user!.id }) })));
+const ownJob = asyncHandler(async (req, res, next) => { const job = await Job.findOne({ where: { id: req.params.id, recruiterId: req.user!.id } }); if (!job) return next(new AppError("Job not found", 404)); await job.update({ ...req.body, recruiterId: req.user!.id }); return res.json({ success: true, job }); });
+jobRouter.patch("/:id", authenticate, authorize(UserRole.RECRUITER), ownJob);
+const changeStatus = (status: JobStatus) => asyncHandler(async (req, res, next) => { const job = await Job.findOne({ where: { id: req.params.id, recruiterId: req.user!.id } }); if (!job) return next(new AppError("Job not found", 404)); await job.update({ status }); return res.json({ success: true, job }); });
+jobRouter.patch("/:id/publish", authenticate, authorize(UserRole.RECRUITER), changeStatus(JobStatus.PUBLISHED)); jobRouter.patch("/:id/close", authenticate, authorize(UserRole.RECRUITER), changeStatus(JobStatus.CLOSED));
+jobRouter.delete("/:id", authenticate, authorize(UserRole.RECRUITER), asyncHandler(async (req, res, next) => { const job = await Job.findOne({ where: { id: req.params.id, recruiterId: req.user!.id } }); if (!job) return next(new AppError("Job not found", 404)); await job.destroy(); return res.status(204).send(); }));

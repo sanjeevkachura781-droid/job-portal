@@ -1,0 +1,17 @@
+import { Router } from "express";
+import { authenticate } from "../../middlewares/authenticate";
+import { authorize } from "../../middlewares/authorize";
+import { asyncHandler } from "../../utils/async-handler";
+import { User, UserRole } from "../auth/auth.model";
+import { Company } from "../companies/company.model";
+import { Job } from "../jobs/job.model";
+import { Application } from "../applications/application.model";
+export const adminRouter = Router();
+adminRouter.use(authenticate, authorize(UserRole.ADMIN));
+adminRouter.get("/users", asyncHandler(async (_req, res) => res.json({ success: true, users: await User.findAll({ attributes: { exclude: ["password"] } }) })));
+adminRouter.patch("/users/:id/status", asyncHandler(async (req, res) => { const user = await User.findByPk(String(req.params.id), { attributes: { exclude: ["password"] } }); if (!user) return res.status(404).json({ success: false, message: "User not found" }); await user.update({ isActive: Boolean(req.body.isActive) }); return res.json({ success: true, user }); }));
+adminRouter.get("/companies", asyncHandler(async (_req, res) => res.json({ success: true, companies: await Company.findAll() })));
+adminRouter.patch("/companies/:id/approve", asyncHandler(async (req, res) => { const company = await Company.findByPk(String(req.params.id)); if (!company) return res.status(404).json({ success: false, message: "Company not found" }); await company.update({ isApproved: req.body.isApproved !== false }); return res.json({ success: true, company }); }));
+adminRouter.get("/jobs", asyncHandler(async (_req, res) => res.json({ success: true, jobs: await Job.findAll() })));
+adminRouter.get("/applications", asyncHandler(async (_req, res) => res.json({ success: true, applications: await Application.findAll() })));
+adminRouter.get("/dashboard", asyncHandler(async (_req, res) => res.json({ success: true, statistics: { users: await User.count(), companies: await Company.count(), jobs: await Job.count(), applications: await Application.count() } })));

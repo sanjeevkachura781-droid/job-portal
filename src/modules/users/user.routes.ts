@@ -1,0 +1,14 @@
+import { Router } from "express";
+import multer from "multer";
+import path from "node:path";
+import { authenticate } from "../../middlewares/authenticate";
+import { authorize } from "../../middlewares/authorize";
+import { asyncHandler } from "../../utils/async-handler";
+import { AppError } from "../../utils/app-error";
+import { UserRole } from "../auth/auth.model";
+import { CandidateProfile } from "./candidate-profile.model";
+const upload = multer({ storage: multer.diskStorage({ destination: "uploads/resumes", filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_")}`) }), limits: { fileSize: 5 * 1024 * 1024 }, fileFilter: (_req, file, cb) => cb(null, ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"].includes(file.mimetype)) });
+export const userRouter = Router();
+userRouter.use(authenticate, authorize(UserRole.CANDIDATE));
+userRouter.patch("/profile", asyncHandler(async (req, res) => { const [profile] = await CandidateProfile.findOrCreate({ where: { userId: req.user!.id }, defaults: { userId: req.user!.id } }); await profile.update({ ...req.body, userId: req.user!.id }); res.json({ success: true, profile }); }));
+userRouter.post("/resume", upload.single("resume"), asyncHandler(async (req, res, next) => { if (!req.file) return next(new AppError("A PDF, DOC, or DOCX resume is required", 400)); const [profile] = await CandidateProfile.findOrCreate({ where: { userId: req.user!.id }, defaults: { userId: req.user!.id } }); await profile.update({ resumeUrl: `/uploads/resumes/${path.basename(req.file.path)}` }); return res.json({ success: true, resumeUrl: profile.resumeUrl }); }));

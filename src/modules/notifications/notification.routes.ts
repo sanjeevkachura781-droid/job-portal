@@ -1,0 +1,10 @@
+import { Router } from "express";
+import { authenticate } from "../../middlewares/authenticate";
+import { asyncHandler } from "../../utils/async-handler";
+import { Notification } from "./notification.model";
+import { AppError } from "../../utils/app-error";
+export const notificationRouter = Router();
+notificationRouter.use(authenticate);
+notificationRouter.get("/", asyncHandler(async (req, res) => res.json({ success: true, notifications: await Notification.findAll({ where: { userId: req.user!.id }, order: [["createdAt", "DESC"]] }) })));
+notificationRouter.patch("/:id/read", asyncHandler(async (req, res, next) => { const item = await Notification.findOne({ where: { id: req.params.id, userId: req.user!.id } }); if (!item) return next(new AppError("Notification not found", 404)); await item.update({ isRead: true }); return res.json({ success: true, notification: item }); }));
+notificationRouter.patch("/read-all", asyncHandler(async (req, res) => { await Notification.update({ isRead: true }, { where: { userId: req.user!.id } }); res.json({ success: true }); }));

@@ -1,0 +1,15 @@
+import { Router } from "express";
+import { authenticate } from "../../middlewares/authenticate";
+import { authorize } from "../../middlewares/authorize";
+import { asyncHandler } from "../../utils/async-handler";
+import { AppError } from "../../utils/app-error";
+import { UserRole } from "../auth/auth.model";
+import { Application, ApplicationStatus } from "../applications/application.model";
+import { Interview, InterviewStatus } from "./interview.model";
+import { Job } from "../jobs/job.model";
+export const interviewRouter = Router();
+interviewRouter.post("/applications/:applicationId/interviews", authenticate, authorize(UserRole.RECRUITER), asyncHandler(async (req, res, next) => { const application = await Application.findByPk(String(req.params.applicationId)); if (!application) return next(new AppError("Application not found", 404)); const job = await Job.findOne({ where: { id: application.jobId, recruiterId: req.user!.id } }); if (!job) return next(new AppError("Application not found", 404)); const interview = await Interview.create({ ...req.body, applicationId: application.id, recruiterId: req.user!.id, candidateId: application.candidateId }); await application.update({ status: ApplicationStatus.INTERVIEW }); return res.status(201).json({ success: true, interview }); }));
+interviewRouter.get("/interviews/my", authenticate, authorize(UserRole.CANDIDATE), asyncHandler(async (req, res) => res.json({ success: true, interviews: await Interview.findAll({ where: { candidateId: req.user!.id } }) })));
+interviewRouter.get("/interviews/recruiter", authenticate, authorize(UserRole.RECRUITER), asyncHandler(async (req, res) => res.json({ success: true, interviews: await Interview.findAll({ where: { recruiterId: req.user!.id } }) })));
+const updateInterview = (status?: InterviewStatus) => asyncHandler(async (req, res, next) => { const where = req.user!.role === UserRole.CANDIDATE ? { id: req.params.id, candidateId: req.user!.id } : { id: req.params.id, recruiterId: req.user!.id }; const interview = await Interview.findOne({ where }); if (!interview) return next(new AppError("Interview not found", 404)); await interview.update({ ...req.body, ...(status ? { status } : {}) }); return res.json({ success: true, interview }); });
+interviewRouter.patch("/interviews/:id/reschedule", authenticate, authorize(UserRole.RECRUITER), updateInterview(InterviewStatus.RESCHEDULED)); interviewRouter.patch("/interviews/:id/cancel", authenticate, updateInterview(InterviewStatus.CANCELLED));
