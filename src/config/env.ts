@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { z } from "zod";
 
-const envSchema = z.object({
+export const envSchema = z.object({
   PORT: z.coerce.number().positive().default(5000),
 
   DB_HOST: z.string().default("localhost"),
@@ -16,6 +16,9 @@ const envSchema = z.object({
     .default("development_secret_change_me"),
 
   JWT_EXPIRES_IN: z.string().default("1d"),
+
+  ADMIN_EMAIL: z.string().email().optional(),
+  ADMIN_PASSWORD: z.string().min(8).optional(),
 });
 
 export const env = envSchema.parse(process.env);
