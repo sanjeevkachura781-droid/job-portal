@@ -1,0 +1,2 @@
+import { api } from "./client";
+export const companyApi = { list: () => api.get<{ companies: import("../types/api").Company[] }>("/companies"), mine: () => api.get<{ companies: import("../types/api").Company[] }>("/companies/mine"), get: (id: number) => api.get<{ company: import("../types/api").Company }>(`/companies/${id}`), create: (body: Record<string, unknown>) => api.post("/companies", body), update: (id: number, body: Record<string, unknown>) => api.patch(`/companies/${id}`, body), remove: (id: number) => api.delete(`/companies/${id}`) };

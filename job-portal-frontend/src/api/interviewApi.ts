@@ -1,0 +1,2 @@
+import { api } from "./client";
+export const interviewApi = { create: (applicationId: number, body: Record<string, string>) => api.post(`/applications/${applicationId}/interviews`, body), mine: () => api.get<{ interviews: import("../types/api").Interview[] }>("/interviews/my"), recruiter: () => api.get<{ interviews: import("../types/api").Interview[] }>("/interviews/recruiter"), reschedule: (id: number, body: Record<string, string>) => api.patch(`/interviews/${id}/reschedule`, body), cancel: (id: number) => api.patch(`/interviews/${id}/cancel`) };

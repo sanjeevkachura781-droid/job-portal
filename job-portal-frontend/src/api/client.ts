@@ -1,0 +1,20 @@
+import axios from "axios";
+const TOKEN_KEY = "job_portal_token";
+const SESSION_EXPIRED_EVENT = "job-portal:session-expired";
+export const getStoredToken = () => localStorage.getItem(TOKEN_KEY);
+export const setAuthSession = (token: string) => localStorage.setItem(TOKEN_KEY, token);
+export const clearAuthSession = () => localStorage.removeItem(TOKEN_KEY);
+export const getToken = getStoredToken;
+export const setToken = setAuthSession;
+export const clearToken = clearAuthSession;
+const isPublicJobRequest = (url?: string, method?: string) => {
+	if (method?.toLowerCase() !== "get") return false;
+	const rawPath = url?.split("?")[0] || "";
+	const path = rawPath.startsWith("http") ? new URL(rawPath).pathname.replace(/^\/api/, "") : rawPath;
+	return path === "/jobs" || /^\/jobs\/\d+$/.test(path);
+};
+export const api = axios.create({ baseURL: `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api` });
+api.interceptors.request.use((config) => { const token = getToken(); if (token) config.headers.Authorization = `Bearer ${token}`; return config; });
+api.interceptors.response.use((response) => response, (error) => { if (error.response?.status === 401 && !isPublicJobRequest(error.config?.url, error.config?.method)) { window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT)); } return Promise.reject(error); });
+export const apiMessage = (error: unknown) => axios.isAxiosError(error) ? error.response?.data?.message || "The request could not be completed." : "The request could not be completed.";
+export const sessionExpiredEvent = SESSION_EXPIRED_EVENT;

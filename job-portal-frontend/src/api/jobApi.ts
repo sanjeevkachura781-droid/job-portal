@@ -1,0 +1,3 @@
+import { api } from "./client";
+import type { Job } from "../types/api";
+export const jobApi = { list: (params: Record<string, string | number | undefined>) => api.get<{ items: Job[]; pagination: import("../types/api").Pagination }>("/jobs", { params }), mine: () => api.get<{ jobs: Job[] }>("/jobs/mine"), get: (id: number) => api.get<{ job: Job }>(`/jobs/${id}`), create: (body: Partial<Job>) => api.post<{ job: Job }>("/jobs", body), update: (id: number, body: Partial<Job>) => api.patch<{ job: Job }>(`/jobs/${id}`, body), publish: (id: number) => api.patch<{ job: Job }>(`/jobs/${id}/publish`), close: (id: number) => api.patch<{ job: Job }>(`/jobs/${id}/close`), remove: (id: number) => api.delete(`/jobs/${id}`) };

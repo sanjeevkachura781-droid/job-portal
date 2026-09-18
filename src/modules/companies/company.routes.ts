@@ -8,6 +8,10 @@ import { Company } from "./company.model";
 
 export const companyRouter = Router();
 companyRouter.get("/", asyncHandler(async (_req, res) => res.json({ success: true, companies: await Company.findAll({ where: { isApproved: true } }) })));
+companyRouter.get("/mine", authenticate, authorize(UserRole.RECRUITER), asyncHandler(async (req, res) => {
+	const companies = await Company.findAll({ where: { recruiterId: req.user!.id } });
+	return res.json({ success: true, companies });
+}));
 companyRouter.get("/:id", asyncHandler(async (req, res, next) => { const company = await Company.findByPk(String(req.params.id)); if (!company) return next(new AppError("Company not found", 404)); return res.json({ success: true, company }); }));
 companyRouter.post("/", authenticate, authorize(UserRole.RECRUITER), asyncHandler(async (req, res) => res.status(201).json({ success: true, company: await Company.create({ ...req.body, recruiterId: req.user!.id }) })));
 companyRouter.patch("/:id", authenticate, authorize(UserRole.RECRUITER), asyncHandler(async (req, res, next) => { const company = await Company.findOne({ where: { id: req.params.id, recruiterId: req.user!.id } }); if (!company) return next(new AppError("Company not found", 404)); await company.update({ ...req.body, recruiterId: req.user!.id }); return res.json({ success: true, company }); }));

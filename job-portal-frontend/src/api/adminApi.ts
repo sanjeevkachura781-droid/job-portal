@@ -1,0 +1,2 @@
+import { api } from "./client";
+export const adminApi = { dashboard: () => api.get("/admin/dashboard"), users: () => api.get("/admin/users"), setUserStatus: (id: number, isActive: boolean) => api.patch(`/admin/users/${id}/status`, { isActive }), companies: () => api.get("/admin/companies"), approveCompany: (id: number, isApproved: boolean) => api.patch(`/admin/companies/${id}/approve`, { isApproved }), jobs: () => api.get("/admin/jobs"), applications: () => api.get("/admin/applications") };
